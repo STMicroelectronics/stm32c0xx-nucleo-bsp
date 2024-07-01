@@ -31,11 +31,7 @@ extern "C" {
 #include "stm32c0xx_nucleo_errno.h"
 
 #if (USE_BSP_COM_FEATURE > 0)
-#if (USE_COM_LOG > 0)
-#ifndef __GNUC__
 #include <stdio.h>
-#endif /* __GNUC__ */
-#endif /* USE_COM_LOG */
 #endif /* USE_BSP_COM_FEATURE */
 
 /** @addtogroup BSP
@@ -57,14 +53,25 @@ extern "C" {
 #define USE_STM32C0XX_NUCLEO
 #endif /* !defined (USE_STM32C0XX_NUCLEO) */
 
+#if !defined (USE_NUCLEO_48) && !defined (USE_NUCLEO_64)
+#error "Board Pin number not defined!! Add USE_NUCLEO_48 or USE_NUCLEO_64 define within stm32c0xx_nucleo_conf.h file"
+#endif /* (!defined (USE_NUCLEO_48) && !defined (USE_NUCLEO_64)) */
+
 /** @defgroup STM32C0XX_NUCLEO_LOW_LEVEL_Exported_Types LOW LEVEL Exported Types
   * @{
   */
 
 typedef enum
 {
+#if defined (USE_NUCLEO_48)
   LED4 = 0,
   LED_GREEN = LED4,
+#else
+  LED1 = 0,
+  LED_GREEN = LED1,
+  LED2 = 1,
+  LED_BLUE = LED2,
+#endif /* USE_NUCLEO_48 */
   LEDn
 } Led_TypeDef;
 
@@ -145,10 +152,10 @@ typedef struct
   */
 
 /**
-  * @brief STM32C0XX NUCLEO BSP Driver version number V1.0.0
+  * @brief STM32C0XX NUCLEO BSP Driver version number V1.1.0
   */
 #define STM32C0XX_NUCLEO_BSP_VERSION_MAIN   (0x01U) /*!< [31:24] main version */
-#define STM32C0XX_NUCLEO_BSP_VERSION_SUB1   (0x00U) /*!< [23:16] sub1 version */
+#define STM32C0XX_NUCLEO_BSP_VERSION_SUB1   (0x01U) /*!< [23:16] sub1 version */
 #define STM32C0XX_NUCLEO_BSP_VERSION_SUB2   (0x00U) /*!< [15:8]  sub2 version */
 #define STM32C0XX_NUCLEO_BSP_VERSION_RC     (0x00U) /*!< [7:0]  release candidate */
 #define STM32C0XX_NUCLEO_BSP_VERSION        ((STM32C0XX_NUCLEO_BSP_VERSION_MAIN << 24)\
@@ -156,17 +163,34 @@ typedef struct
                                              |(STM32C0XX_NUCLEO_BSP_VERSION_SUB2 << 8 )\
                                              |(STM32C0XX_NUCLEO_BSP_VERSION_RC))
 
+#if defined (USE_NUCLEO_48)
 #define STM32C0XX_NUCLEO_BSP_BOARD_NAME  "NUCLEO-C031C6";
 #define STM32C0XX_NUCLEO_BSP_BOARD_ID    "MB1717B";
+#else
+#define STM32C0XX_NUCLEO_BSP_BOARD_NAME  "NUCLEO-C071RB";
+#define STM32C0XX_NUCLEO_BSP_BOARD_ID    "MB2046B";
+#endif /* USE_NUCLEO_48 */
 
 /** @defgroup STM32C0XX_NUCLEO_LOW_LEVEL_LED LOW LEVEL LED
   * @{
   */
+#if defined (USE_NUCLEO_48)
 #define LED4_PIN                                GPIO_PIN_5
 #define LED4_GPIO_PORT                          GPIOA
 #define LED4_GPIO_CLK_ENABLE()                  __HAL_RCC_GPIOA_CLK_ENABLE()
 #define LED4_GPIO_CLK_DISABLE()                 __HAL_RCC_GPIOA_CLK_DISABLE()
+#else /* defined (USE_NUCLEO_64) */
+#define LED1_PIN                                GPIO_PIN_5
+#define LED1_GPIO_PORT                          GPIOA
+#define LED1_GPIO_CLK_ENABLE()                  __HAL_RCC_GPIOA_CLK_ENABLE()
+#define LED1_GPIO_CLK_DISABLE()                 __HAL_RCC_GPIOA_CLK_DISABLE()
 
+#define LED2_PIN                                GPIO_PIN_9
+#define LED2_GPIO_PORT                          GPIOC
+#define LED2_GPIO_CLK_ENABLE()                  __HAL_RCC_GPIOC_CLK_ENABLE()
+#define LED2_GPIO_CLK_DISABLE()                 __HAL_RCC_GPIOC_CLK_DISABLE()
+
+#endif
 
 
 /**
@@ -188,7 +212,7 @@ typedef struct
 #define BUTTON_USER_GPIO_CLK_ENABLE()         __HAL_RCC_GPIOC_CLK_ENABLE()
 #define BUTTON_USER_GPIO_CLK_DISABLE()        __HAL_RCC_GPIOC_CLK_DISABLE()
 #define BUTTON_USER_EXTI_IRQn                 EXTI4_15_IRQn
-#define BUTTON_USER_EXTI_LINE                 GPIO_PIN_13
+#define BUTTON_USER_EXTI_LINE                 EXTI_LINE_13
 
 /**
   * @}
@@ -201,21 +225,22 @@ typedef struct
   * @brief Definition for COM port1, connected to UART1
   */
 #if (USE_BSP_COM_FEATURE > 0)
-#define COM1_UART                     USART1
-#define COM1_CLK_ENABLE()             __HAL_RCC_USART1_CLK_ENABLE()
-#define COM1_CLK_DISABLE()            __HAL_RCC_USART1_CLK_DISABLE()
+#define COM1_UART                     USART2
+#define COM1_CLK_ENABLE()             __HAL_RCC_USART2_CLK_ENABLE()
+#define COM1_CLK_DISABLE()            __HAL_RCC_USART2_CLK_DISABLE()
 
-#define COM1_TX_PIN                   GPIO_PIN_6
-#define COM1_TX_GPIO_PORT             GPIOB
-#define COM1_TX_GPIO_CLK_ENABLE()     __HAL_RCC_GPIOB_CLK_ENABLE()
-#define COM1_TX_GPIO_CLK_DISABLE()    __HAL_RCC_GPIOB_CLK_DISABLE()
-#define COM1_TX_AF                    GPIO_AF1_USART1
+#define COM1_TX_PIN                   GPIO_PIN_2
+#define COM1_TX_GPIO_PORT             GPIOA
+#define COM1_TX_GPIO_CLK_ENABLE()     __HAL_RCC_GPIOA_CLK_ENABLE()
+#define COM1_TX_GPIO_CLK_DISABLE()    __HAL_RCC_GPIOA_CLK_DISABLE()
+#define COM1_TX_AF                    GPIO_AF1_USART2
 
-#define COM1_RX_PIN                   GPIO_PIN_7
-#define COM1_RX_GPIO_PORT             GPIOB
-#define COM1_RX_GPIO_CLK_ENABLE()     __HAL_RCC_GPIOB_CLK_ENABLE()
-#define COM1_RX_GPIO_CLK_DISABLE()    __HAL_RCC_GPIOB_CLK_DISABLE()
-#define COM1_RX_AF                    GPIO_AF1_USART1
+#define COM1_RX_PIN                   GPIO_PIN_3
+#define COM1_RX_GPIO_PORT             GPIOA
+#define COM1_RX_GPIO_CLK_ENABLE()     __HAL_RCC_GPIOA_CLK_ENABLE()
+#define COM1_RX_GPIO_CLK_DISABLE()    __HAL_RCC_GPIOA_CLK_DISABLE()
+#define COM1_RX_AF                    GPIO_AF1_USART2
+
 #define COM_POLL_TIMEOUT             1000
 #endif /* USE_BSP_COM_FEATURE */
 
@@ -269,7 +294,7 @@ int32_t  BSP_COM_SelectLogPort(COM_TypeDef COM);
 int32_t BSP_COM_RegisterDefaultMspCallbacks(COM_TypeDef COM);
 int32_t BSP_COM_RegisterMspCallbacks(COM_TypeDef COM, BSP_COM_Cb_t *Callback);
 #endif /* USE_HAL_UART_REGISTER_CALLBACKS */
-HAL_StatusTypeDef MX_USART1_Init(UART_HandleTypeDef *huart, MX_UART_InitTypeDef *COM_Init);
+HAL_StatusTypeDef MX_USART2_Init(UART_HandleTypeDef *huart, MX_UART_InitTypeDef *COM_Init);
 #endif /* USE_BSP_COM_FEATURE */
 
 /**

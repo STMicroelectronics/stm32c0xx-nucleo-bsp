@@ -20,7 +20,9 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32c0xx_nucleo.h"
-
+#if defined(__ICCARM__)
+#include <LowLevelIOInterface.h>
+#endif /* __ICCARM__ */
 /** @addtogroup BSP
   * @{
   */
@@ -65,8 +67,24 @@ USART_TypeDef *COM_USART[COMn]   = {COM1_UART};
 /** @defgroup STM32C0XX_NUCLEO_LOW_LEVEL_Private_Variables LOW LEVEL Private Variables
   * @{
   */
-static GPIO_TypeDef *LED_PORT[LEDn] = {LED4_GPIO_PORT};
-static const uint16_t LED_PIN[LEDn] = {LED4_PIN};
+static GPIO_TypeDef *LED_PORT[LEDn] =
+{
+#if defined (USE_NUCLEO_64)
+  LED1_GPIO_PORT,
+  LED2_GPIO_PORT
+#else
+  LED4_GPIO_PORT
+#endif /* USE_NUCLEO_64 */
+};
+static const uint16_t LED_PIN[LEDn] =
+{
+#if defined (USE_NUCLEO_64)
+  LED1_PIN,
+  LED2_PIN
+#else
+  LED4_PIN
+#endif
+};
 
 static GPIO_TypeDef *BUTTON_PORT[BUTTONn]   = {BUTTON_USER_GPIO_PORT};
 static const uint16_t BUTTON_PIN[BUTTONn]   = {BUTTON_USER_PIN};
@@ -80,6 +98,19 @@ static COM_TypeDef COM_ActiveLogPort = COM1;
 static uint32_t IsComMspCbValid[COMn] = {0};
 #endif /* (USE_HAL_UART_REGISTER_CALLBACKS == 1) */
 #endif /* USE_BSP_COM_FEATURE) */
+
+#if defined(__ICCARM__)
+/* New definition from EWARM V9, compatible with EWARM8 */
+int iar_fputc(int ch);
+#define PUTCHAR_PROTOTYPE int iar_fputc(int ch)
+
+#elif defined (__CC_ARM) || defined(__ARMCC_VERSION)
+/* ARM Compiler 5/6 */
+#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
+
+#elif defined(__GNUC__)
+#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+#endif /* __ICCARM__ */
 
 /**
   * @}
@@ -132,6 +163,8 @@ const uint8_t *BSP_GetBoardID(void)
   * @brief  Configures LED GPIO.
   * @param  Led Specifies the Led to be configured.
   *   This parameter can be one of following parameters:
+  *     @arg  LED1
+  *     @arg  LED2
   *     @arg  LED4
   * @retval BSP status
   */
@@ -140,14 +173,34 @@ int32_t BSP_LED_Init(Led_TypeDef Led)
   int32_t ret = BSP_ERROR_NONE;
   GPIO_InitTypeDef  gpio_init_structure;
 
+#if defined (USE_NUCLEO_64)
+  if ((Led != LED1)
+      && (Led != LED2))
+#else
   if (Led != LED4)
+#endif /* defined (USE_NUCLEO_64) */
   {
     ret = BSP_ERROR_WRONG_PARAM;
   }
   else
   {
-    LED4_GPIO_CLK_ENABLE();
- 
+    /* Enable the GPIO LED Clock */
+#if defined (USE_NUCLEO_64)
+    if (Led == LED1)
+    {
+      LED1_GPIO_CLK_ENABLE();
+    }
+    else
+    {
+      LED2_GPIO_CLK_ENABLE();
+    }
+#else
+    if (Led == LED4)
+    {
+      LED4_GPIO_CLK_ENABLE();
+    }
+#endif /* defined (USE_NUCLEO_64) */
+
     /* Configure the GPIO_LED pin */
     gpio_init_structure.Pin   = LED_PIN[Led];
     gpio_init_structure.Mode  = GPIO_MODE_OUTPUT_PP;
@@ -155,6 +208,12 @@ int32_t BSP_LED_Init(Led_TypeDef Led)
     gpio_init_structure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
 
     HAL_GPIO_Init(LED_PORT[Led], &gpio_init_structure);
+#if defined (USE_NUCLEO_64)
+    if (Led == LED2)
+    {
+     HAL_GPIO_WritePin(LED_PORT [Led], (uint16_t)LED_PIN[Led], GPIO_PIN_SET);
+    }
+#endif
   }
   return ret;
 }
@@ -163,6 +222,8 @@ int32_t BSP_LED_Init(Led_TypeDef Led)
   * @brief  DeInit LEDs.
   * @param  Led LED to be de-init.
   *   This parameter can be one of the following values:
+  *     @arg  LED1
+  *     @arg  LED2
   *     @arg  LED4
   * @retval BSP status
   */
@@ -171,7 +232,12 @@ int32_t BSP_LED_DeInit(Led_TypeDef Led)
   int32_t ret = BSP_ERROR_NONE;
   GPIO_InitTypeDef  gpio_init_structure;
 
+#if defined (USE_NUCLEO_64)
+  if ((Led != LED1)
+      && (Led != LED2))
+#else
   if (Led != LED4)
+#endif /* defined (USE_NUCLEO_64) */
   {
     ret = BSP_ERROR_WRONG_PARAM;
   }
@@ -179,6 +245,12 @@ int32_t BSP_LED_DeInit(Led_TypeDef Led)
   {
     /* Turn off LED */
     HAL_GPIO_WritePin(LED_PORT[Led], LED_PIN[Led], GPIO_PIN_RESET);
+#if defined (USE_NUCLEO_64)
+    if (Led == LED2)
+    {
+     HAL_GPIO_WritePin(LED_PORT [Led], (uint16_t)LED_PIN[Led], GPIO_PIN_SET);
+    }
+#endif
     /* DeInit the GPIO_LED pin */
     gpio_init_structure.Pin = LED_PIN[Led];
     HAL_GPIO_DeInit(LED_PORT[Led], gpio_init_structure.Pin);
@@ -191,6 +263,8 @@ int32_t BSP_LED_DeInit(Led_TypeDef Led)
   * @brief  Turns selected LED On.
   * @param  Led Specifies the Led to be set on.
   *   This parameter can be one of following parameters:
+  *     @arg  LED1
+  *     @arg  LED2
   *     @arg  LED4
   * @retval BSP status
   */
@@ -198,13 +272,30 @@ int32_t BSP_LED_On(Led_TypeDef Led)
 {
   int32_t ret = BSP_ERROR_NONE;
 
+#if defined (USE_NUCLEO_64)
+  if ((Led != LED1)
+      && (Led != LED2))
+#else
   if (Led != LED4)
+#endif /* defined (USE_NUCLEO_64) */
   {
     ret = BSP_ERROR_WRONG_PARAM;
   }
   else
   {
-    HAL_GPIO_WritePin(LED_PORT[Led], LED_PIN[Led], GPIO_PIN_SET);
+#if defined (USE_NUCLEO_64)
+    if (Led == LED1)
+    {
+      HAL_GPIO_WritePin(LED_PORT[Led], LED_PIN[Led], GPIO_PIN_SET);
+    }
+    else
+    {
+      HAL_GPIO_WritePin(LED_PORT[Led], LED_PIN[Led], GPIO_PIN_RESET);
+    }
+#else
+
+     HAL_GPIO_WritePin(LED_PORT[Led], LED_PIN[Led], GPIO_PIN_SET);
+#endif
   }
 
   return ret;
@@ -214,6 +305,8 @@ int32_t BSP_LED_On(Led_TypeDef Led)
   * @brief  Turns selected LED Off.
   * @param  Led: Specifies the Led to be set off.
   *   This parameter can be one of following parameters:
+  *     @arg  LED1
+  *     @arg  LED2
   *     @arg  LED4
   * @retval BSP status
   */
@@ -221,13 +314,30 @@ int32_t BSP_LED_Off(Led_TypeDef Led)
 {
   int32_t ret = BSP_ERROR_NONE;
 
+#if defined (USE_NUCLEO_64)
+  if ((Led != LED1)
+      && (Led != LED2))
+#else
   if (Led != LED4)
+#endif /* defined (USE_NUCLEO_64) */
   {
     ret = BSP_ERROR_WRONG_PARAM;
   }
   else
   {
-    HAL_GPIO_WritePin(LED_PORT[Led], LED_PIN[Led], GPIO_PIN_RESET);
+#if defined (USE_NUCLEO_64)
+    if (Led == LED1)
+    {
+      HAL_GPIO_WritePin(LED_PORT[Led], LED_PIN[Led], GPIO_PIN_RESET);
+    }
+    else
+    {
+      HAL_GPIO_WritePin(LED_PORT[Led], LED_PIN[Led], GPIO_PIN_SET);
+    }
+#else
+
+     HAL_GPIO_WritePin(LED_PORT[Led], LED_PIN[Led], GPIO_PIN_RESET);
+#endif
   }
 
   return ret;
@@ -237,6 +347,8 @@ int32_t BSP_LED_Off(Led_TypeDef Led)
   * @brief  Toggles the selected LED.
   * @param  Led Specifies the Led to be toggled.
   *   This parameter can be one of following parameters:
+  *     @arg  LED1
+  *     @arg  LED2
   *     @arg  LED4
   * @retval BSP status
   */
@@ -244,7 +356,12 @@ int32_t BSP_LED_Toggle(Led_TypeDef Led)
 {
   int32_t ret = BSP_ERROR_NONE;
 
+#if defined (USE_NUCLEO_64)
+  if ((Led != LED1)
+      && (Led != LED2))
+#else
   if (Led != LED4)
+#endif /* defined (USE_NUCLEO_64) */
   {
     ret = BSP_ERROR_WRONG_PARAM;
   }
@@ -260,6 +377,8 @@ int32_t BSP_LED_Toggle(Led_TypeDef Led)
   * @brief  Get the state of the selected LED.
   * @param  Led LED to get its state
   *   This parameter can be one of following parameters:
+  *     @arg  LED1
+  *     @arg  LED2
   *     @arg  LED4
   * @retval LED status
   */
@@ -267,7 +386,12 @@ int32_t BSP_LED_GetState(Led_TypeDef Led)
 {
   int32_t ret;
 
+#if defined (USE_NUCLEO_64)
+  if ((Led != LED1)
+      && (Led != LED2))
+#else
   if (Led != LED4)
+#endif /* defined (USE_NUCLEO_64) */
   {
     ret = BSP_ERROR_WRONG_PARAM;
   }
@@ -301,7 +425,7 @@ int32_t BSP_PB_Init(Button_TypeDef Button, ButtonMode_TypeDef ButtonMode)
   BUTTON_USER_GPIO_CLK_ENABLE();
 
   gpio_init_structure.Pin = BUTTON_PIN [Button];
-  gpio_init_structure.Pull = GPIO_PULLDOWN;
+  gpio_init_structure.Pull = GPIO_PULLUP;
   gpio_init_structure.Speed = GPIO_SPEED_FREQ_HIGH;
 
   if (ButtonMode == BUTTON_MODE_GPIO)
@@ -414,7 +538,7 @@ int32_t BSP_COM_Init(COM_TypeDef COM, COM_InitTypeDef *COM_Init)
     }
 #endif /* (USE_HAL_UART_REGISTER_CALLBACKS == 0) */
 
-    if (MX_USART1_Init(&hcom_uart[COM], COM_Init) != HAL_OK)
+    if (MX_USART2_Init(&hcom_uart[COM], COM_Init) != HAL_OK)
     {
       ret = BSP_ERROR_PERIPH_FAILURE;
     }
@@ -462,7 +586,7 @@ int32_t BSP_COM_DeInit(COM_TypeDef COM)
   *                  configuration information for the specified USART peripheral.
   * @retval HAL error code
   */
-__weak HAL_StatusTypeDef MX_USART1_Init(UART_HandleTypeDef *huart, MX_UART_InitTypeDef *COM_Init)
+__weak HAL_StatusTypeDef MX_USART2_Init(UART_HandleTypeDef *huart, MX_UART_InitTypeDef *COM_Init)
 {
   /* USART configuration */
   huart->Instance                = COM_USART[COM1];
@@ -569,18 +693,31 @@ int32_t BSP_COM_SelectLogPort(COM_TypeDef COM)
   return BSP_ERROR_NONE;
 }
 
+#if defined(__ICCARM__)
+size_t __write(int file, unsigned char const *ptr, size_t len)
+{
+  size_t idx;
+  unsigned char const *pdata = ptr;
+
+  for (idx = 0; idx < len; idx++)
+  {
+    iar_fputc((int)*pdata);
+    pdata++;
+  }
+  return len;
+}
+#endif /* __ICCARM__ */
+
 /**
   * @brief  Redirect console output to COM
   */
-#ifdef __GNUC__
-int __io_putchar(int ch)
-#else
-int fputc(int ch, FILE *f)
-#endif /* __GNUC__ */
+
+PUTCHAR_PROTOTYPE
 {
   HAL_UART_Transmit(&hcom_uart [COM_ActiveLogPort], (uint8_t *) &ch, 1, COM_POLL_TIMEOUT);
   return ch;
 }
+
 #endif /* USE_COM_LOG */
 #endif /* USE_BSP_COM_FEATURE */
 
